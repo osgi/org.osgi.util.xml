@@ -17,33 +17,49 @@
  *******************************************************************************/
 package org.osgi.test.cases.xml.junit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.SAXParserFactory;
 
+import org.junit.jupiter.api.Test;
 import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.ServiceReference;
-import org.osgi.test.support.compatibility.DefaultTestBundleControl;
+import org.osgi.test.common.annotation.InjectBundleContext;
+import org.osgi.test.common.annotation.InjectBundleInstaller;
+import org.osgi.test.common.install.BundleInstaller;
 import org.osgi.util.xml.XMLParserActivator;
 
 /**
  * This is the XML Parser Service test suite
  */
-public class XMLControl extends DefaultTestBundleControl {
+public class XMLControl {
+
+	@InjectBundleContext
+	BundleContext		context;
+
+	@InjectBundleInstaller
+	BundleInstaller		installer;
+
 	/**
 	 * This test iterates over all of the SAXParserFactories registered with the
 	 * framework and checks that their service properties match their
 	 * capabilities
 	 */
+	@Test
 	public void testSAXParserFactories() throws Exception {
-		Collection<ServiceReference<SAXParserFactory>> references = getContext()
+		Collection<ServiceReference<SAXParserFactory>> references = context
 				.getServiceReferences(SAXParserFactory.class, null);
 		if (references.isEmpty()) {
-			log("[WARNING: No SAXParserFactories found; testSAXParserFactories will not run]");
+			System.out.println("[WARNING: No SAXParserFactories found; testSAXParserFactories will not run]");
 			return;
 		}
 		for (ServiceReference<SAXParserFactory> reference : references) {
@@ -54,26 +70,26 @@ public class XMLControl extends DefaultTestBundleControl {
 	private void checkSAXParserFactory(
 			ServiceReference<SAXParserFactory> reference)
 			throws Exception {
-		log("[Found: " + summarize(reference) + "]");
+		System.out.println("[Found: " + summarize(reference) + "]");
 		Boolean ns = (Boolean) reference
 				.getProperty(XMLParserActivator.PARSER_NAMESPACEAWARE);
 		boolean namespaceAware = Boolean.TRUE.equals(ns);
-		log("[Namespace Aware? " + namespaceAware + "]");
+		System.out.println("[Namespace Aware? " + namespaceAware + "]");
 		Boolean v = (Boolean) reference
 				.getProperty(XMLParserActivator.PARSER_VALIDATING);
 		boolean validating = Boolean.TRUE.equals(v);
-		log("[Validating? " + validating + "]");
-		SAXParserFactory factory = getContext().getService(
+		System.out.println("[Validating? " + validating + "]");
+		SAXParserFactory factory = context.getService(
 				reference);
 		try {
 			factory.setNamespaceAware(namespaceAware);
 			factory.setValidating(validating);
 			// Try to create a parser instance
 			factory.newSAXParser();
-			log("[SAXParserFactory created successfully]");
+			System.out.println("[SAXParserFactory created successfully]");
 		}
 		finally {
-			getContext().ungetService(reference);
+			context.ungetService(reference);
 		}
 	}
 
@@ -82,11 +98,12 @@ public class XMLControl extends DefaultTestBundleControl {
 	 * with the framework and checks that their service properties match their
 	 * capabilities
 	 */
+	@Test
 	public void testDocumentBuilderFactories() throws Exception {
-		Collection<ServiceReference<DocumentBuilderFactory>> references = getContext()
+		Collection<ServiceReference<DocumentBuilderFactory>> references = context
 				.getServiceReferences(DocumentBuilderFactory.class, null);
 		if (references.isEmpty()) {
-			log("[WARNING: No DocumentBuilderFactories found; testDocumentBuilderFactories will not run]");
+			System.out.println("[WARNING: No DocumentBuilderFactories found; testDocumentBuilderFactories will not run]");
 			return;
 		}
 		for (ServiceReference<DocumentBuilderFactory> reference : references) {
@@ -97,26 +114,26 @@ public class XMLControl extends DefaultTestBundleControl {
 	private void checkDocumentBuilderFactory(
 			ServiceReference<DocumentBuilderFactory> reference)
 			throws Exception {
-		log("[Found: " + summarize(reference) + "]");
+		System.out.println("[Found: " + summarize(reference) + "]");
 		Boolean ns = (Boolean) reference
 				.getProperty(XMLParserActivator.PARSER_NAMESPACEAWARE);
 		boolean namespaceAware = Boolean.TRUE.equals(ns);
-		log("[Namespace Aware? " + namespaceAware + "]");
+		System.out.println("[Namespace Aware? " + namespaceAware + "]");
 		Boolean v = (Boolean) reference
 				.getProperty(XMLParserActivator.PARSER_VALIDATING);
 		boolean validating = Boolean.TRUE.equals(v);
-		log("[Validating? " + validating + "]");
-		DocumentBuilderFactory factory = getContext()
+		System.out.println("[Validating? " + validating + "]");
+		DocumentBuilderFactory factory = context
 				.getService(reference);
 		try {
 			factory.setNamespaceAware(namespaceAware);
 			factory.setValidating(validating);
 			// Try to create a parser instance
 			factory.newDocumentBuilder();
-			log("[DocumentBuilderFactory created successfully]");
+			System.out.println("[DocumentBuilderFactory created successfully]");
 		}
 		finally {
-			getContext().ungetService(reference);
+			context.ungetService(reference);
 		}
 	}
 
@@ -124,20 +141,20 @@ public class XMLControl extends DefaultTestBundleControl {
 	 * This test verifies that the XMLParserActivator class will correctly read
 	 * the META-INF/services/javax.xml.parsers.SAXParserFactory file
 	 */
+	@Test
 	public void testXMLParserActivator_SAXParserFactories() throws Exception {
 		// NOTE: Issue 153 will cause this test to fail. To temporarily
 		// workaround the problem and allow the
 		//       test to pass, comment out all the lines marked with "Issue 153"
-		Bundle tb1 = installBundle("tb1.jar");
+		Bundle tb1 = installer.installBundle("tb1.jar");
 		try {
 			tb1.start();
 			ServiceReference< ? >[] references = getServiceReferences(
 					SAXParserFactory.class.getName(), tb1);
-			assertEquals("Wrong number of services registered", 4,
-					references.length); // Issue 153
+			assertThat(references.length).as("Wrong number of services registered").isEqualTo(4); // Issue 153
 			int seen = 1;
 			for (int i = 0; i < references.length; i++) {
-				String s = getContext().getService(references[i]).getClass()
+				String s = context.getService(references[i]).getClass()
 						.getName();
 				try {
 					if ("org.osgi.test.cases.xml.tb1.A".equals(s)) {
@@ -164,15 +181,13 @@ public class XMLControl extends DefaultTestBundleControl {
 								}
 				}
 				finally {
-					getContext().ungetService(references[i]);
+					context.ungetService(references[i]);
 				}
 			}
-			assertEquals(
-					"Did not see all four services or the same service was registered more than once",
-					2 * 3 * 5 * 7, seen); // Issue 153
+			assertThat(seen).as("Did not see all four services or the same service was registered more than once").isEqualTo(2 * 3 * 5 * 7); // Issue 153
 		}
 		finally {
-			uninstallBundle(tb1);
+			tb1.uninstall();
 		}
 	}
 
@@ -180,21 +195,21 @@ public class XMLControl extends DefaultTestBundleControl {
 	 * This test verifies that the XMLParserActivator class will correctly read
 	 * the META-INF/services/javax.xml.parsers.DocumentBuilderFactory file
 	 */
+	@Test
 	public void testXMLParserActivator_DocumentBuilderFactories()
 			throws Exception {
 		// NOTE: Issue 153 will cause this test to fail. To temporarily
 		// workaround the problem and allow the
 		//       test to pass, comment out all the lines marked with "Issue 153"
-		Bundle tb2 = installBundle("tb2.jar");
+		Bundle tb2 = installer.installBundle("tb2.jar");
 		try {
 			tb2.start();
 			ServiceReference< ? >[] references = getServiceReferences(
 					DocumentBuilderFactory.class.getName(), tb2);
-			assertEquals("Wrong number of services registered", 4,
-					references.length); // Issue 153
+			assertThat(references.length).as("Wrong number of services registered").isEqualTo(4); // Issue 153
 			int seen = 1;
 			for (int i = 0; i < references.length; i++) {
-				String s = getContext().getService(references[i]).getClass()
+				String s = context.getService(references[i]).getClass()
 						.getName();
 				try {
 					if ("org.osgi.test.cases.xml.tb2.A".equals(s)) {
@@ -221,15 +236,13 @@ public class XMLControl extends DefaultTestBundleControl {
 								}
 				}
 				finally {
-					getContext().ungetService(references[i]);
+					context.ungetService(references[i]);
 				}
 			}
-			assertEquals(
-					"Did not see all four services or the same service was registered more than once",
-					2 * 3 * 5 * 7, seen); // Issue 153
+			assertThat(seen).as("Did not see all four services or the same service was registered more than once").isEqualTo(2 * 3 * 5 * 7); // Issue 153
 		}
 		finally {
-			uninstallBundle(tb2);
+			tb2.uninstall();
 		}
 	}
 
@@ -237,38 +250,32 @@ public class XMLControl extends DefaultTestBundleControl {
 	 * Verifies that the setSAXProperties() and setDOMProperties() methods work
 	 * correctly when the XMLParserActivator class is extended.
 	 */
+	@Test
 	public void testXMLParserActivator_Customizations() throws Exception {
-		Bundle tb3 = installBundle("tb3.jar");
+		Bundle tb3 = installer.installBundle("tb3.jar");
 		try {
 			// Check the SAXParserFactory first
 			ServiceReference< ? >[] references = getServiceReferences(
 					SAXParserFactory.class.getName(), tb3);
-			assertEquals(
-					"There should be just one SAX parser, but there isn't", 1,
-					references.length);
+			assertThat(references.length).as("There should be just one SAX parser, but there isn't").isOne();
 			ServiceReference< ? > ref = references[0];
 			checkProperties(ref, true, true);
-			assertEquals("service.description property has the wrong value",
-					"A simple SAX parser", ref
-							.getProperty(Constants.SERVICE_DESCRIPTION));
-			assertEquals("marsupial property has the wrong value", "kangaroo",
-					ref.getProperty("marsupial"));
+			assertThat(ref
+							.getProperty(Constants.SERVICE_DESCRIPTION)).as("service.description property has the wrong value").isEqualTo("A simple SAX parser");
+			assertThat(ref.getProperty("marsupial")).as("marsupial property has the wrong value").isEqualTo("kangaroo");
 			// Now check the DocumentBuilderFactory
 			references = getServiceReferences(DocumentBuilderFactory.class
 					.getName(), tb3);
-			assertEquals(
-					"There should be just one DOM parser, but there isn't", 1,
-					references.length);
+			assertThat(references.length).as("There should be just one DOM parser, but there isn't").isOne();
 			ref = references[0];
 			checkProperties(ref, true, true);
-			assertEquals("service.description property has the wrong value",
-					"A simple DOM parser", ref
-							.getProperty(Constants.SERVICE_DESCRIPTION));
-			assertEquals("marsupial property has the wrong value", "koala", ref
-					.getProperty("marsupial"));
+			assertThat(ref
+							.getProperty(Constants.SERVICE_DESCRIPTION)).as("service.description property has the wrong value").isEqualTo("A simple DOM parser");
+			assertThat(ref
+					.getProperty("marsupial")).as("marsupial property has the wrong value").isEqualTo("koala");
 		}
 		finally {
-			uninstallBundle(tb3);
+			tb3.uninstall();
 		}
 	}
 
@@ -278,40 +285,38 @@ public class XMLControl extends DefaultTestBundleControl {
 	 */
 	private void checkProperties(ServiceReference< ? > reference,
 			boolean validating, boolean namespaceAware) throws Exception {
-		log("[Checking: " + summarize(reference) + "]");
-		assertNotNull("service.pid property is not set", reference
-				.getProperty(Constants.SERVICE_PID));
-		ServiceReference< ? >[] references = getContext().getServiceReferences(
+		System.out.println("[Checking: " + summarize(reference) + "]");
+		assertThat(reference
+				.getProperty(Constants.SERVICE_PID)).as("service.pid property is not set").isNotNull();
+		ServiceReference< ? >[] references = context.getServiceReferences(
                 (String) null,
 				"(service.pid=" + reference.getProperty(Constants.SERVICE_PID)
 						+ ")");
-		assertEquals("service.pid property is not unique", 1, references.length);
-		assertNotNull("service.description property is not set", reference
-				.getProperty(Constants.SERVICE_DESCRIPTION));
+		assertThat(references.length).as("service.pid property is not unique").isOne();
+		assertThat(reference
+				.getProperty(Constants.SERVICE_DESCRIPTION)).as("service.description property is not set").isNotNull();
 		Boolean v = (Boolean) reference
 				.getProperty(XMLParserActivator.PARSER_VALIDATING);
-		assertNotNull("parser.validating property is not set", v);
-		assertEquals("parser.validating property has the wrong value",
-				Boolean.valueOf(validating), v);
+		assertThat(v).as("parser.validating property is not set").isNotNull();
+		assertThat(v).as("parser.validating property has the wrong value").isEqualTo(Boolean.valueOf(validating));
 		Boolean ns = (Boolean) reference
 				.getProperty(XMLParserActivator.PARSER_NAMESPACEAWARE);
-		assertNotNull("parser.namespaceAware property is not set", ns);
-		assertEquals("parser.namespaceAware property has the wrong value",
-				Boolean.valueOf(namespaceAware), ns);
+		assertThat(ns).as("parser.namespaceAware property is not set").isNotNull();
+		assertThat(ns).as("parser.namespaceAware property has the wrong value").isEqualTo(Boolean.valueOf(namespaceAware));
 	}
 
 	private String summarize(ServiceReference< ? > reference) {
 		StringBuffer buffer = new StringBuffer();
-		Object service = getContext().getService(reference);
+		Object service = context.getService(reference);
 		try {
 			buffer.append(service);
 		}
 		finally {
-			getContext().ungetService(reference);
+			context.ungetService(reference);
 		}
 		String[] objectClass = (String[]) reference
 				.getProperty(Constants.OBJECTCLASS);
-		buffer.append(", objectClass = ").append(arrayToString(objectClass));
+		buffer.append(", objectClass = ").append(Arrays.toString(objectClass));
 		Long id = (Long) reference.getProperty(Constants.SERVICE_ID);
 		buffer.append(", id = ").append(id);
 		String pid = (String) reference.getProperty(Constants.SERVICE_PID);
@@ -338,7 +343,7 @@ public class XMLControl extends DefaultTestBundleControl {
 	private ServiceReference< ? >[] getServiceReferences(String clazz,
 			Bundle bundle)
 			throws Exception {
-		ServiceReference< ? >[] references = getContext().getServiceReferences(
+		ServiceReference< ? >[] references = context.getServiceReferences(
 				clazz, null);
 		if (references == null) {
 			return new ServiceReference< ? >[0];
